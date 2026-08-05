@@ -55,6 +55,14 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
   const [downloadStarted, setDownloadStarted] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Download URLs per platform — replace these with real hosted file URLs when available
+  const downloadUrls: Record<string, string> = {
+    windows: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-Setup-Windows.exe',
+    android: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-Android.apk',
+    mac: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-macOS.dmg',
+    linux: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-Linux.AppImage',
+  };
+
   // Auto detect user device platform
   useEffect(() => {
     const ua = navigator.userAgent || '';
@@ -111,12 +119,15 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
 
   const isLight = settings.themeMode === 'light';
 
-  const handleSimulateDownload = (platformName: string) => {
+  const handleSimulateDownload = (platformName: string, platformId?: string) => {
     setDownloadStarted(platformName);
+    const url = platformId ? downloadUrls[platformId] : downloadUrls['windows'];
     setTimeout(() => {
       setDownloadStarted(null);
-      alert(`[Simulasi Download] File installer ${platformName} berhasil diunduh! Silakan jalankan file instalasi di perangkat Anda.`);
-    }, 1500);
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    }, 800);
   };
 
   const platformsList = [
@@ -243,7 +254,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                   </div>
 
                   <button
-                    onClick={() => handleSimulateDownload(detectedPlatform.name)}
+                    onClick={() => handleSimulateDownload(detectedPlatform.name, detectedPlatform.iconName)}
                     disabled={downloadStarted !== null}
                     className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-bold text-xs rounded-2xl shadow-xl shadow-indigo-500/30 transition flex items-center justify-center gap-2 shrink-0"
                   >
@@ -312,7 +323,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                         </p>
 
                         <button
-                          onClick={() => handleSimulateDownload(item.title)}
+                          onClick={() => handleSimulateDownload(item.title, item.id)}
                           disabled={downloadStarted !== null}
                           className={`w-full py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition ${
                             isLight
