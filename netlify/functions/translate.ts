@@ -2,10 +2,13 @@ import type { Handler } from "@netlify/functions";
 import { GoogleGenAI, Type } from "@google/genai";
 import { searchOfflineDictionary } from "../../src/data/offlineDictionary.js";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: { headers: { "User-Agent": "aistudio-build" } },
-});
+const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
+const ai = geminiApiKey
+  ? new GoogleGenAI({
+      apiKey: geminiApiKey,
+      httpOptions: { headers: { "User-Agent": "aistudio-build" } },
+    })
+  : null;
 
 const LANGUAGE_NAME_MAP: Record<string, string> = {
   id: "Indonesian",
@@ -159,6 +162,10 @@ Bahasa Tujuan: ${targetLang}
 Gaya/Tone: ${tone}
 
 Pastikan jika teks mengandung slang lokal Indonesia (seperti "gimmick", "ngedrop", "gercep", "mabar", "baper") atau istilah daerah, terjemahkan dengan makna emosional dan konteks yang paling pas.`;
+
+    if (!ai) {
+      throw new Error("Missing GEMINI_API_KEY / VITE_GEMINI_API_KEY");
+    }
 
     const response = await ai.models.generateContent({
       model: "gemini-2.0-flash",
