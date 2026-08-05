@@ -55,14 +55,6 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
   const [downloadStarted, setDownloadStarted] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
 
-  // Download URLs per platform — replace these with real hosted file URLs when available
-  const downloadUrls: Record<string, string> = {
-    windows: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-Setup-Windows.exe',
-    android: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-Android.apk',
-    mac: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-macOS.dmg',
-    linux: 'https://github.com/benoeryan/RBLingua/releases/latest/download/RBLingua-Linux.AppImage',
-  };
-
   // Auto detect user device platform
   useEffect(() => {
     const ua = navigator.userAgent || '';
@@ -86,7 +78,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
       setDetectedPlatform({
         name: 'macOS (Apple Silicon & Intel)',
         iconName: 'mac',
-        downloadLabel: 'Unduh LinguaSync.dmg (macOS 12+)',
+        downloadLabel: 'Unduh RBLingua.dmg (macOS 12+)',
         fileSize: '52.8 MB',
         version: 'v3.6.0 Universal',
       });
@@ -102,7 +94,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
       setDetectedPlatform({
         name: 'Windows 10/11 PC',
         iconName: 'windows',
-        downloadLabel: 'Unduh LinguaSync_Setup.exe (64-bit)',
+        downloadLabel: 'Unduh RBLingua_Setup.exe (64-bit)',
         fileSize: '45.2 MB',
         version: 'v3.6.0 Windows Pro',
       });
@@ -119,15 +111,12 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
 
   const isLight = settings.themeMode === 'light';
 
-  const handleSimulateDownload = (platformName: string, platformId?: string) => {
+  const handleSimulateDownload = (platformName: string) => {
     setDownloadStarted(platformName);
-    const url = platformId ? downloadUrls[platformId] : downloadUrls['windows'];
     setTimeout(() => {
       setDownloadStarted(null);
-      if (url) {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    }, 800);
+      alert(`[Simulasi Download] File installer ${platformName} berhasil diunduh! Silakan jalankan file instalasi di perangkat Anda.`);
+    }, 1500);
   };
 
   const platformsList = [
@@ -254,7 +243,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                   </div>
 
                   <button
-                    onClick={() => handleSimulateDownload(detectedPlatform.name, detectedPlatform.iconName)}
+                    onClick={() => handleSimulateDownload(detectedPlatform.name)}
                     disabled={downloadStarted !== null}
                     className="w-full sm:w-auto px-5 py-3 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-bold text-xs rounded-2xl shadow-xl shadow-indigo-500/30 transition flex items-center justify-center gap-2 shrink-0"
                   >
@@ -323,7 +312,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                         </p>
 
                         <button
-                          onClick={() => handleSimulateDownload(item.title, item.id)}
+                          onClick={() => handleSimulateDownload(item.title)}
                           disabled={downloadStarted !== null}
                           className={`w-full py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition ${
                             isLight
@@ -350,7 +339,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                   <Sparkles className="w-4 h-4" /> Petunjuk Integrasi Langsung ke Aplikasi Favorit Anda
                 </h4>
                 <p className={`text-xs mt-1 ${isLight ? 'text-slate-600' : 'text-neutral-300'}`}>
-                  LinguaSync dirancang untuk menyadap, membaca, dan menerjemahkan percakapan secara otomatis di atas berbagai aplikasi tanpa perlu berpindah jendela.
+                  RBLingua dirancang untuk menyadap, membaca, dan menerjemahkan percakapan secara otomatis di atas berbagai aplikasi tanpa perlu berpindah jendela.
                 </p>
               </div>
 
@@ -364,10 +353,10 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                     <MessageSquare className="w-4 h-4" />
                     <span>1. Integrasi Overlay WhatsApp & Telegram Chat</span>
                   </div>
-                  <ol className={`text-xs space-y-1.5 list-decimal list-inside ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
-                    <li>Buka tombol <strong>Jendela Mengambang (Bubble)</strong> di header atas aplikasi LinguaSync.</li>
+                  <ol className={`text-xs space-y-1.5 list-decimal list-inside font-medium ${isLight ? 'text-slate-900' : 'text-neutral-300'}`}>
+                    <li>Buka tombol <strong>Jendela Mengambang (Bubble)</strong> di header atas aplikasi RBLingua.</li>
                     <li>Pada HP Android: Aktifkan izin <strong>"Display Over Other Apps"</strong> saat diminta sistem.</li>
-                    <li>Di WhatsApp/Telegram, gelembung LinguaSync akan melayang di pinggir layar.</li>
+                    <li>Di WhatsApp/Telegram, gelembung RBLingua akan melayang di pinggir layar.</li>
                     <li>Cukup tekan tombol <strong>"Terjemahkan Instan"</strong> pada pesan apa pun untuk melihat hasil terjemahan langsung di dalam obrolan!</li>
                   </ol>
                 </div>
@@ -381,7 +370,7 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                     <span>2. Integrasi Subtitel Melayang Live Meeting (Google Meet / Zoom / Teams / Webex)</span>
                   </div>
                   <ol className={`text-xs space-y-1.5 list-decimal list-inside font-medium ${isLight ? 'text-slate-900' : 'text-neutral-300'}`}>
-                    <li>Pilih tab <strong>"Notulensi Rapat"</strong> di menu navigasi utama LinguaSync.</li>
+                    <li>Pilih tab <strong>"Notulensi & Meeting Subtitle"</strong> di menu navigasi utama RBLingua.</li>
                     <li>Pilih platform meeting Anda (misal: <strong>Google Meet, Zoom, Teams, Webex</strong>).</li>
                     <li>Pilih sumber audio input: <strong>"Dual Channel (Mikrofon + Audio Meeting)"</strong>.</li>
                     <li>Klik tombol <strong>"Buka Subtitel Melayang"</strong> untuk memunculkan bilah subtitel transparan yang dapat ditempatkan di atas jendela meeting Anda!</li>
@@ -389,15 +378,31 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                   </ol>
                 </div>
 
-                {/* 3. WINDOWS & MACOS GLOBAL HOTKEY */}
+                {/* 3. PANGGILAN TELEPON & SUARA 2 ARAH */}
                 <div className={`p-4 rounded-2xl border space-y-2 ${
                   isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-950 border-neutral-800'
                 }`}>
-                  <div className="flex items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-400">
-                    <Zap className="w-4 h-4" />
-                    <span>3. Pintasan Keyboard Global (Hotkeys Windows / Mac)</span>
+                  <div className="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-400">
+                    <Smartphone className="w-4 h-4" />
+                    <span>3. Integrasi Live Translating Panggilan Telepon / WA Call</span>
                   </div>
-                  <div className={`text-xs space-y-2 ${isLight ? 'text-slate-700' : 'text-neutral-300'}`}>
+                  <ol className={`text-xs space-y-1.5 list-decimal list-inside font-medium ${isLight ? 'text-slate-900' : 'text-neutral-300'}`}>
+                    <li>Pilih tab <strong>"Suara 2 Arah & Call"</strong> di menu utama RBLingua.</li>
+                    <li>Pilih mode <strong>"Panggilan Telepon / WA"</strong> dan hidupkan tombol <strong>"Audio TTS Aktif"</strong>.</li>
+                    <li>Saat telepon tersambung, ketika Anda berbicara Bahasa Indonesia, RBLingua langsung menerjemahkan dan membacakan suara terjemahan (TTS) ke speaker/mikrofon panggilan untuk lawan bicara Anda.</li>
+                    <li>Suara jawaban dari lawan bicara juga langsung diterjemahkan kembali ke Bahasa Indonesia secara real-time.</li>
+                  </ol>
+                </div>
+
+                {/* 4. WINDOWS & MACOS GLOBAL HOTKEY */}
+                <div className={`p-4 rounded-2xl border space-y-2 ${
+                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-950 border-neutral-800'
+                }`}>
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-400">
+                    <Zap className="w-4 h-4" />
+                    <span>4. Pintasan Keyboard Global (Hotkeys Windows / Mac)</span>
+                  </div>
+                  <div className={`text-xs space-y-2 font-medium ${isLight ? 'text-slate-900' : 'text-neutral-300'}`}>
                     <p>
                       Tekan tombol pintasan berikut di mana pun Anda berada (misal di Microsoft Word, Browser, atau PDF) untuk memunculkan penerjemah cepat:
                     </p>
@@ -409,6 +414,26 @@ export const AppDownloadAndGuideModal: React.FC<AppDownloadAndGuideModalProps> =
                         Cmd + Shift + T (macOS)
                       </span>
                     </div>
+                  </div>
+                </div>
+
+                {/* 5. DEPLOYMENT KE NETLIFY / VERCEL / CLOUDFLARE */}
+                <div className={`p-4 rounded-2xl border space-y-2 ${
+                  isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-950 border-neutral-800'
+                }`}>
+                  <div className="flex items-center gap-2 text-xs font-bold text-sky-600 dark:text-sky-400">
+                    <Globe className="w-4 h-4" />
+                    <span>5. Deployment Web (Netlify, Vercel, Cloudflare Pages)</span>
+                  </div>
+                  <div className={`text-xs space-y-2 font-medium ${isLight ? 'text-slate-900' : 'text-neutral-300'}`}>
+                    <p>
+                      Aplikasi RBLingua sudah dilengkapi file router <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">vercel.json</code>, <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">netlify.toml</code>, dan <code className="font-mono font-bold text-indigo-600 dark:text-indigo-400">public/_redirects</code> sehingga Anda bisa langsung mempublikasikannya secara gratis:
+                    </p>
+                    <ul className="list-disc list-inside space-y-1 pl-1">
+                      <li><strong>Vercel:</strong> Hubungkan repo GitHub ke Vercel -&gt; Framework Preset: <strong>Vite</strong> -&gt; Build Command: <code className="font-mono">npm run build</code> -&gt; Output: <code className="font-mono">dist</code>. Tambahkan Environment Variable <code className="font-mono">GEMINI_API_KEY</code>.</li>
+                      <li><strong>Netlify:</strong> Import repo GitHub ke Netlify -&gt; Publish Directory: <code className="font-mono">dist</code> -&gt; Build Command: <code className="font-mono">npm run build</code>.</li>
+                      <li><strong>Google Gemini API:</strong> Jika Anda mendaftarkan Kunci API di Google AI Studio, pastikan kunci tersebut dimasukkan ke menu <strong>Environment Variables</strong> di dashboard Vercel / Netlify Anda agar AI beroperasi 100% tanpa batas.</li>
+                    </ul>
                   </div>
                 </div>
               </div>

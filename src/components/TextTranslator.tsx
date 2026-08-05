@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, getLanguageName } from '../data/languages';
 import { AppSettings, RegisterTone, TranslationResult } from '../types';
+import { searchOfflineDictionary } from '../data/offlineDictionary';
 
 interface TextTranslatorProps {
   settings: AppSettings;
@@ -94,7 +95,25 @@ export const TextTranslator: React.FC<TextTranslatorProps> = ({ settings, onSave
       setResult(resObj);
       onSaveHistory(resObj);
     } catch (err) {
-      console.error('Translation error:', err);
+      console.error('Translation server error, falling back to local engine:', err);
+      const offlineMatch = searchOfflineDictionary(text, sourceLang, targetLang);
+      const fallbackResult: TranslationResult = {
+        id: 'tr-' + Date.now(),
+        sourceText: text,
+        translatedText: offlineMatch?.translation || `[Terjemahan Offline] ${text}`,
+        sourceLang,
+        targetLang,
+        tone,
+        transliteration: offlineMatch?.transliteration || '',
+        contextExplanation: offlineMatch?.notes || 'Mode Offline Lokal (Server Backend Tidak Terjangkau)',
+        slangNuances: ['Processed via client-side offline dictionary'],
+        synonyms: [],
+        timestamp: Date.now(),
+        isOffline: true,
+        isFavorite: false,
+      };
+      setResult(fallbackResult);
+      onSaveHistory(fallbackResult);
     } finally {
       setLoading(false);
     }
