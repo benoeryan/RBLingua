@@ -1,0 +1,6 @@
+{
+  "name": "RBLingua - Real-Time AI Auto Translate & Meeting Live Subtitles",
+  "description": "RBLingua - Penerjemah Suara & Teks Real-Time Multi-Platform, Subtitel Melayang Live Meeting & Panggilan Telepon, Notulensi AI, dan Panel Admin Pengelola.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
