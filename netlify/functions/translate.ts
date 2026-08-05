@@ -7,6 +7,44 @@ const ai = new GoogleGenAI({
   httpOptions: { headers: { "User-Agent": "aistudio-build" } },
 });
 
+const LANGUAGE_NAME_MAP: Record<string, string> = {
+  id: "Indonesian",
+  jv: "Javanese",
+  su: "Sundanese",
+  min: "Minangkabau",
+  ban: "Balinese",
+  bug: "Buginese",
+  ace: "Acehnese",
+  btk: "Batak",
+  mad: "Madurese",
+  en: "English",
+  ja: "Japanese",
+  ko: "Korean",
+  zh: "Chinese (Simplified)",
+  "zh-TW": "Chinese (Traditional)",
+  ar: "Arabic",
+  es: "Spanish",
+  fr: "French",
+  de: "German",
+  ru: "Russian",
+  pt: "Portuguese",
+  it: "Italian",
+  nl: "Dutch",
+  hi: "Hindi",
+  th: "Thai",
+  vi: "Vietnamese",
+  tl: "Tagalog / Filipino",
+  tr: "Turkish",
+};
+
+const getLanguageLabel = (code?: string) => LANGUAGE_NAME_MAP[code || ""] || (code || "target language");
+
+const buildOfflineFallbackText = (text: string, sourceLang: string, targetLang: string) => {
+  const sourceLabel = sourceLang === "auto" ? "detected source language" : getLanguageLabel(sourceLang);
+  const targetLabel = getLanguageLabel(targetLang);
+  return `[OFFLINE FALLBACK] Translation to ${targetLabel} unavailable. Keep original (${sourceLabel}): ${text}`;
+};
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
@@ -36,7 +74,9 @@ export const handler: Handler = async (event) => {
             contextExplanation: offlineMatch.notes || "Diterjemahkan via Kamus Offline Lokal Instant 0ms",
             slangNuances: offlineMatch.notes ? [offlineMatch.notes] : [],
             synonyms: [],
-            isOffline: true,
+            slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
+        synonyms: [],
+        isOffline: true,
           }),
         };
       }
@@ -52,7 +92,9 @@ export const handler: Handler = async (event) => {
           contextExplanation: "Diproses oleh Mesin Offline On-Device (Simulasi neural lokal)",
           slangNuances: ["Mode offline diaktifkan"],
           synonyms: [],
-          isOffline: true,
+          slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
+        synonyms: [],
+        isOffline: true,
         }),
       };
     }
@@ -136,11 +178,13 @@ Pastikan jika teks mengandung slang lokal Indonesia (seperti "gimmick", "ngedrop
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sourceText: body.text || "",
-        translatedText: offlineFallback?.translation || body.text || "",
+        translatedText: offlineFallback?.translation || buildOfflineFallbackText(body.text || "", body.sourceLang || "auto", body.targetLang || "id"),
         sourceLang: body.sourceLang || "auto",
         targetLang: body.targetLang || "id",
         tone: body.tone || "casual",
-        contextExplanation: "Mode Cadangan Cepat (Gagal terhubung ke Cloud AI)",
+        contextExplanation: offlineFallback ? "Mode Cadangan Cepat (Gagal terhubung ke Cloud AI)" : `Mode Cadangan Cepat: Kamus offline belum punya padanan untuk ${getLanguageLabel(body.targetLang || "id")}.`,
+        slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
+        synonyms: [],
         isOffline: true,
       }),
     };
