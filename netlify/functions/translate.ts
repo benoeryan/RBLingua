@@ -45,6 +45,41 @@ const buildOfflineFallbackText = (text: string, sourceLang: string, targetLang: 
   return `[OFFLINE FALLBACK] Translation to ${targetLabel} unavailable. Keep original (${sourceLabel}): ${text}`;
 };
 
+const buildResponsePayload = ({
+  sourceText,
+  translatedText,
+  sourceLang,
+  targetLang,
+  tone,
+  transliteration = "",
+  contextExplanation = "",
+  slangNuances = [],
+  synonyms = [],
+  isOffline,
+}: {
+  sourceText: string;
+  translatedText: string;
+  sourceLang: string;
+  targetLang: string;
+  tone: string;
+  transliteration?: string;
+  contextExplanation?: string;
+  slangNuances?: string[];
+  synonyms?: string[];
+  isOffline: boolean;
+}) => ({
+  sourceText,
+  translatedText,
+  sourceLang,
+  targetLang,
+  tone,
+  transliteration,
+  contextExplanation,
+  slangNuances,
+  synonyms,
+  isOffline,
+});
+
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
@@ -64,38 +99,39 @@ export const handler: Handler = async (event) => {
         return {
           statusCode: 200,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceText: text,
-            translatedText: offlineMatch.translation,
-            sourceLang,
-            targetLang,
-            tone,
-            transliteration: offlineMatch.transliteration || "",
-            contextExplanation: offlineMatch.notes || "Diterjemahkan via Kamus Offline Lokal Instant 0ms",
-            slangNuances: offlineMatch.notes ? [offlineMatch.notes] : [],
-            synonyms: [],
-            slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
-        synonyms: [],
-        isOffline: true,
-          }),
+          body: JSON.stringify(
+            buildResponsePayload({
+              sourceText: text,
+              translatedText: offlineMatch.translation,
+              sourceLang,
+              targetLang,
+              tone,
+              transliteration: offlineMatch.transliteration || "",
+              contextExplanation: offlineMatch.notes || "Diterjemahkan via Kamus Offline Lokal Instant 0ms",
+              slangNuances: offlineMatch.notes ? [offlineMatch.notes] : [],
+              synonyms: [],
+              isOffline: true,
+            })
+          ),
         };
       }
+
       return {
         statusCode: 200,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sourceText: text,
-          translatedText: `[OFFLINE] ${text}`,
-          sourceLang,
-          targetLang,
-          tone,
-          contextExplanation: "Diproses oleh Mesin Offline On-Device (Simulasi neural lokal)",
-          slangNuances: ["Mode offline diaktifkan"],
-          synonyms: [],
-          slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
-        synonyms: [],
-        isOffline: true,
-        }),
+        body: JSON.stringify(
+          buildResponsePayload({
+            sourceText: text,
+            translatedText: `[OFFLINE] ${text}`,
+            sourceLang,
+            targetLang,
+            tone,
+            contextExplanation: "Diproses oleh Mesin Offline On-Device (Simulasi neural lokal)",
+            slangNuances: ["Mode offline diaktifkan", "Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
+            synonyms: [],
+            isOffline: true,
+          })
+        ),
       };
     }
 
@@ -149,44 +185,55 @@ Pastikan jika teks mengandung slang lokal Indonesia (seperti "gimmick", "ngedrop
       if (response.text) {
         jsonResult = JSON.parse(response.text.trim());
       }
-    } catch (e) {
+    } catch {
       jsonResult.translatedText = response.text || text;
     }
 
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceText: text,
-        translatedText: jsonResult.translatedText,
-        sourceLang,
-        targetLang,
-        tone,
-        transliteration: jsonResult.transliteration || "",
-        contextExplanation: jsonResult.contextExplanation || "Terjemahan AI Akurat Presisi Tinggi",
-        slangNuances: jsonResult.slangNuances || [],
-        synonyms: jsonResult.synonyms || [],
-        isOffline: false,
-      }),
+      body: JSON.stringify(
+        buildResponsePayload({
+          sourceText: text,
+          translatedText: jsonResult.translatedText || text,
+          sourceLang,
+          targetLang,
+          tone,
+          transliteration: jsonResult.transliteration || "",
+          contextExplanation: jsonResult.contextExplanation || "Terjemahan AI Akurat Presisi Tinggi",
+          slangNuances: Array.isArray(jsonResult.slangNuances) ? jsonResult.slangNuances : [],
+          synonyms: Array.isArray(jsonResult.synonyms) ? jsonResult.synonyms : [],
+          isOffline: false,
+        })
+      ),
     };
   } catch (error: any) {
     console.error("Error in translate function:", error);
     const body = JSON.parse(event.body || "{}");
-    const offlineFallback = searchOfflineDictionary(body.text || "", body.sourceLang, body.targetLang);
+    const sourceText = body.text || "";
+    const sourceLang = body.sourceLang || "auto";
+    const targetLang = body.targetLang || "id";
+    const tone = body.tone || "casual";
+    const offlineFallback = searchOfflineDictionary(sourceText, sourceLang, targetLang);
+
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sourceText: body.text || "",
-        translatedText: offlineFallback?.translation || buildOfflineFallbackText(body.text || "", body.sourceLang || "auto", body.targetLang || "id"),
-        sourceLang: body.sourceLang || "auto",
-        targetLang: body.targetLang || "id",
-        tone: body.tone || "casual",
-        contextExplanation: offlineFallback ? "Mode Cadangan Cepat (Gagal terhubung ke Cloud AI)" : `Mode Cadangan Cepat: Kamus offline belum punya padanan untuk ${getLanguageLabel(body.targetLang || "id")}.`,
-        slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
-        synonyms: [],
-        isOffline: true,
-      }),
+      body: JSON.stringify(
+        buildResponsePayload({
+          sourceText,
+          translatedText: offlineFallback?.translation || buildOfflineFallbackText(sourceText, sourceLang, targetLang),
+          sourceLang,
+          targetLang,
+          tone,
+          contextExplanation: offlineFallback
+            ? "Mode Cadangan Cepat (Gagal terhubung ke Cloud AI)"
+            : `Mode Cadangan Cepat: Kamus offline belum punya padanan untuk ${getLanguageLabel(targetLang)}.`,
+          slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
+          synonyms: [],
+          isOffline: true,
+        })
+      ),
     };
   }
 };
