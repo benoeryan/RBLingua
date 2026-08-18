@@ -14,6 +14,7 @@ import {
 import { MOCK_STREET_SIGNS } from '../data/mockApps';
 import { AppSettings, CameraOCRBoundingBox } from '../types';
 import { getLanguageName } from '../data/languages';
+import { executeOcrScan } from '../services/aiService';
 
 interface CameraScannerProps {
   settings: AppSettings;
@@ -78,15 +79,7 @@ export const CameraScanner: React.FC<CameraScannerProps> = ({ settings }) => {
   const processOcrImage = async (base64Img: string) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/ocr-scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imageBase64: base64Img,
-          targetLang,
-        }),
-      });
-      const data = await res.json();
+      const data = await executeOcrScan(base64Img, targetLang);
       if (data.boxes && data.boxes.length > 0) {
         setOcrBoxes(data.boxes);
       } else {

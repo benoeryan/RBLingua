@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, getLanguageName } from '../data/languages';
 import { AppSettings } from '../types';
+import { executeTranslation } from '../services/aiService';
 
 interface VoiceConversationProps {
   settings: AppSettings;
@@ -95,25 +96,20 @@ export const VoiceConversation: React.FC<VoiceConversationProps> = ({ settings }
       
       // Translate voice transcript
       try {
-        const res = await fetch('/api/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: transcript,
-            sourceLang: selectedLang,
-            targetLang: targetLangCode,
-            tone: 'formal',
-            isOffline: settings.offlineMode,
-          }),
+        const transResult = await executeTranslation({
+          text: transcript,
+          sourceLang: selectedLang,
+          targetLang: targetLangCode,
+          tone: 'formal',
+          isOffline: settings.offlineMode,
         });
-        const data = await res.json();
 
         const newLog: VoiceMessageLog = {
           id: 'v-' + Date.now(),
           speaker: speakerKey === 'A' ? 'Person A' : 'Person B',
           langCode: selectedLang,
           originalText: transcript,
-          translatedText: data.translatedText || transcript,
+          translatedText: transResult.translatedText || transcript,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
@@ -121,7 +117,7 @@ export const VoiceConversation: React.FC<VoiceConversationProps> = ({ settings }
 
         // Auto play TTS response in target language so it gets voiced out
         if (autoPlayTTS) {
-          speakText(data.translatedText || transcript, targetLangCode);
+          speakText(transResult.translatedText || transcript, targetLangCode);
         }
       } catch (e) {
         console.error(e);

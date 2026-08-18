@@ -17,7 +17,9 @@ import {
   Settings,
   UserCheck,
   UserX,
-  Edit2
+  Edit2,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 import { AppSettings, AdminUser, AdminAppSettings } from '../types';
 
@@ -85,10 +87,58 @@ export const AdminControlModal: React.FC<AdminControlModalProps> = ({
   const [savedSuccessMsg, setSavedSuccessMsg] = useState<string | null>(null);
 
   // App Config State
-  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('AIzaSyD-StandardServerKeyVerified');
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState(
+    () => localStorage.getItem('rb_gemini_api_key') || ''
+  );
+  const [testApiLoading, setTestApiLoading] = useState(false);
+  const [testApiResult, setTestApiResult] = useState<{ success: boolean; message: string } | null>(null);
   const [customPromptInput, setCustomPromptInput] = useState(
     'Anda adalah AI Translator Profesional RBLingua. Terjemahkan teks dengan akurasi tinggi, pertahankan nuansa budaya, bahasa daerah, dan bahasa gaul slang.'
   );
+
+  // Test API Key
+  const handleTestApiKey = async () => {
+    if (!geminiApiKeyInput.trim()) {
+      setTestApiResult({ success: false, message: 'Harap masukkan Kunci API Gemini terlebih dahulu.' });
+      return;
+    }
+
+    setTestApiLoading(true);
+    setTestApiResult(null);
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKeyInput.trim())}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: 'Halo, terjemahkan kata "Selamat" ke bahasa Inggris dalam 1 kata.' }] }],
+        }),
+      });
+
+      if (res.ok) {
+        setTestApiResult({ success: true, message: 'Koneksi Berhasil! Google Gemini AI siap digunakan.' });
+        localStorage.setItem('rb_gemini_api_key', geminiApiKeyInput.trim());
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setTestApiResult({
+          success: false,
+          message: errorData?.error?.message || `Gagal terhubung (Status ${res.status}). Periksa validitas API key Anda.`,
+        });
+      }
+    } catch (e: any) {
+      setTestApiResult({ success: false, message: `Error koneksi: ${e.message || 'Periksa jaringan internet.'}` });
+    } finally {
+      setTestApiLoading(false);
+    }
+  };
+
+  // Handle Save System Config
+  const handleSaveConfig = () => {
+    localStorage.setItem('rb_gemini_api_key', geminiApiKeyInput.trim());
+    setSavedSuccessMsg('Kunci API & Konfigurasi Berhasil Disimpan!');
+    setTimeout(() => setSavedSuccessMsg(null), 3000);
+  };
 
   // Handle Logo Upload File
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -473,7 +523,7 @@ export const AdminControlModal: React.FC<AdminControlModalProps> = ({
           {/* TAB 3: KONFIGURASI SISTEM & API */}
           {activeTab === 'config' && (
             <div className="space-y-4">
-              <div className={`p-4 rounded-2xl border space-y-3 ${
+              <div className={`p-4 rounded-2xl border space-y-4 ${
                 isLight ? 'bg-slate-50 border-slate-200' : 'bg-neutral-950 border-neutral-800'
               }`}>
                 <h3 className={`text-sm font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
@@ -484,21 +534,65 @@ export const AdminControlModal: React.FC<AdminControlModalProps> = ({
                 <div className="space-y-3 text-xs">
                   <div>
                     <label className={`block font-bold mb-1 ${isLight ? 'text-slate-800' : 'text-neutral-200'}`}>
-                      Kunci API Gemini (Server-Side Active)
+                      Kunci Google Gemini API (AI Studio)
                     </label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <input
                         type="password"
+                        placeholder="Masukkan API Key (cth: AIzaSy...)"
                         value={geminiApiKeyInput}
                         onChange={(e) => setGeminiApiKeyInput(e.target.value)}
                         className={`flex-1 border rounded-xl px-3 py-2 font-mono text-xs focus:outline-none ${
                           isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-neutral-900 border-neutral-700 text-white'
                         }`}
                       />
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold px-2.5 py-1 rounded-xl border border-emerald-500/30">
-                        Verified Secure
-                      </span>
+                      <button
+                        type="button"
+                        onClick={handleTestApiKey}
+                        disabled={testApiLoading}
+                        className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shrink-0 transition"
+                      >
+                        {testApiLoading ? (
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Zap className="w-3.5 h-3.5" />
+                        )}
+                        <span>{testApiLoading ? 'Menguji...' : 'Uji Koneksi API'}</span>
+                      </button>
                     </div>
+
+                    {testApiResult && (
+                      <div className={`mt-2 p-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 border ${
+                        testApiResult.success
+                          ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-red-500/15 border-red-500/30 text-red-800 dark:text-red-300'
+                      }`}>
+                        {testApiResult.success ? (
+                          <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                        )}
+                        <span>{testApiResult.message}</span>
+                      </div>
+                    )}
+
+                    <p className={`text-[11px] mt-1.5 ${isLight ? 'text-slate-600' : 'text-neutral-400'}`}>
+                      Kunci API ini otomatis tersimpan di browser untuk menerjemahkan secara instan di hosting statis (Netlify / Vercel / GitHub Pages).
+                    </p>
+                  </div>
+
+                  <div className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                    isLight ? 'bg-indigo-50/70 border-indigo-100 text-slate-800' : 'bg-indigo-950/30 border-indigo-900/50 text-indigo-200'
+                  }`}>
+                    <p className="font-bold flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                      <Globe className="w-3.5 h-3.5" />
+                      Petunjuk Khusus Netlify / Vercel:
+                    </p>
+                    <p className="text-[11px] leading-relaxed">
+                      Untuk memastikan penerjemah bekerja 100% tanpa perlu memasukkan API key manual di setiap browser pengguna, tambahkan environment variable di dashboard host Anda:
+                      <br />
+                      Nama variabel: <code className="font-mono font-bold bg-black/10 dark:bg-black/40 px-1 py-0.5 rounded">GEMINI_API_KEY</code> atau <code className="font-mono font-bold bg-black/10 dark:bg-black/40 px-1 py-0.5 rounded">VITE_GEMINI_API_KEY</code>.
+                    </p>
                   </div>
 
                   <div>
@@ -518,13 +612,11 @@ export const AdminControlModal: React.FC<AdminControlModalProps> = ({
 
                 <div className="pt-3 border-t border-slate-200 dark:border-neutral-800 flex justify-end">
                   <button
-                    onClick={() => {
-                      setSavedSuccessMsg('Konfigurasi API & Prompt Sistem Disimpan!');
-                      setTimeout(() => setSavedSuccessMsg(null), 3000);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md"
+                    onClick={handleSaveConfig}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
                   >
-                    Simpan Konfigurasi Sistem
+                    <Check className="w-4 h-4" />
+                    <span>Simpan Konfigurasi Sistem</span>
                   </button>
                 </div>
               </div>

@@ -1,246 +1,135 @@
-import type { Handler } from "@netlify/functions";
-import { GoogleGenAI, Type } from "@google/genai";
-import { searchOfflineDictionary } from "../../src/data/offlineDictionary.js";
+import { GoogleGenAI, Type } from '@google/genai';
+import { searchOfflineDictionary } from '../../src/data/offlineDictionary';
 
-const geminiApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || "";
-const ai = geminiApiKey
-  ? new GoogleGenAI({
-      apiKey: geminiApiKey,
-      httpOptions: { headers: { "User-Agent": "aistudio-build" } },
-    })
-  : null;
+export default async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      },
+    });
+  }
 
-const LANGUAGE_NAME_MAP: Record<string, string> = {
-  id: "Indonesian",
-  jv: "Javanese",
-  su: "Sundanese",
-  min: "Minangkabau",
-  ban: "Balinese",
-  bug: "Buginese",
-  ace: "Acehnese",
-  btk: "Batak",
-  mad: "Madurese",
-  en: "English",
-  ja: "Japanese",
-  ko: "Korean",
-  zh: "Chinese (Simplified)",
-  "zh-TW": "Chinese (Traditional)",
-  ar: "Arabic",
-  es: "Spanish",
-  fr: "French",
-  de: "German",
-  ru: "Russian",
-  pt: "Portuguese",
-  it: "Italian",
-  nl: "Dutch",
-  hi: "Hindi",
-  th: "Thai",
-  vi: "Vietnamese",
-  tl: "Tagalog / Filipino",
-  tr: "Turkish",
-};
-
-const getLanguageLabel = (code?: string) => LANGUAGE_NAME_MAP[code || ""] || (code || "target language");
-
-const buildOfflineFallbackText = (text: string, sourceLang: string, targetLang: string) => {
-  const sourceLabel = sourceLang === "auto" ? "detected source language" : getLanguageLabel(sourceLang);
-  const targetLabel = getLanguageLabel(targetLang);
-  return `[OFFLINE FALLBACK] Translation to ${targetLabel} unavailable. Keep original (${sourceLabel}): ${text}`;
-};
-
-const buildResponsePayload = ({
-  sourceText,
-  translatedText,
-  sourceLang,
-  targetLang,
-  tone,
-  transliteration = "",
-  contextExplanation = "",
-  slangNuances = [],
-  synonyms = [],
-  isOffline,
-}: {
-  sourceText: string;
-  translatedText: string;
-  sourceLang: string;
-  targetLang: string;
-  tone: string;
-  transliteration?: string;
-  contextExplanation?: string;
-  slangNuances?: string[];
-  synonyms?: string[];
-  isOffline: boolean;
-}) => ({
-  sourceText,
-  translatedText,
-  sourceLang,
-  targetLang,
-  tone,
-  transliteration,
-  contextExplanation,
-  slangNuances,
-  synonyms,
-  isOffline,
-});
-
-export const handler: Handler = async (event) => {
-  if (event.httpMethod !== "POST") {
-    return { statusCode: 405, body: JSON.stringify({ error: "Method not allowed" }) };
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    const body = JSON.parse(event.body || "{}");
-    const { text, sourceLang = "auto", targetLang = "id", tone = "casual", isOffline = false } = body;
+    const body = await req.json();
+    const { text, sourceLang = 'auto', targetLang = 'id', tone = 'casual', isOffline = false } = body;
 
-    if (!text || typeof text !== "string" || !text.trim()) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Teks terjemahan tidak boleh kosong" }) };
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return new Response(JSON.stringify({ error: 'Teks tidak boleh kosong' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    if (isOffline) {
-      const offlineMatch = searchOfflineDictionary(text, sourceLang, targetLang);
-      if (offlineMatch) {
-        return {
-          statusCode: 200,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            buildResponsePayload({
-              sourceText: text,
-              translatedText: offlineMatch.translation,
-              sourceLang,
-              targetLang,
-              tone,
-              transliteration: offlineMatch.transliteration || "",
-              contextExplanation: offlineMatch.notes || "Diterjemahkan via Kamus Offline Lokal Instant 0ms",
-              slangNuances: offlineMatch.notes ? [offlineMatch.notes] : [],
-              synonyms: [],
-              isOffline: true,
-            })
-          ),
-        };
-      }
+    const apiKey = process.env.GEMINI_API_KEY || (process.env as any).VITE_GEMINI_API_KEY;
 
-      return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          buildResponsePayload({
-            sourceText: text,
-            translatedText: `[OFFLINE] ${text}`,
-            sourceLang,
-            targetLang,
-            tone,
-            contextExplanation: "Diproses oleh Mesin Offline On-Device (Simulasi neural lokal)",
-            slangNuances: ["Mode offline diaktifkan", "Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
-            synonyms: [],
-            isOffline: true,
-          })
-        ),
-      };
+    if (!apiKey || isOffline) {
+      const match = searchOfflineDictionary(text, sourceLang, targetLang);
+      return new Response(
+        JSON.stringify({
+          sourceText: text,
+          translatedText: match ? match.translation : text,
+          sourceLang,
+          targetLang,
+          tone,
+          transliteration: match?.transliteration || '',
+          contextExplanation: match?.notes || 'Mode Offline Cepat',
+          slangNuances: [match?.notes || 'Offline dictionary'],
+          synonyms: [],
+          isOffline: true,
+        }),
+        { headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    const systemInstruction = `Anda adalah mesin Auto Translate AI tingkat tinggi yang mampu menerjemahkan bahasa gaul/slang, bahasa daerah Indonesia (Sunda, Jawa, Minang, Bali, Bugis, Batak, Aceh, Madura), serta bahasa internasional (Inggris, Jepang, Korea, Arab, Mandarin, Spanyol, dll.) dengan akurasi sangat presisi.
-Dengarkan instruksi tone/register:
-- casual: santai, gaul, alami untuk perpesanan harian
-- formal: resmi, baku, sopan
-- business: profesional, gaya email & korporat
-- slang: sangat kental gaya anak muda / daerah setempat
-- poetic: puitis / sastra
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: { 'User-Agent': 'aistudio-build' },
+      },
+    });
 
-Berikan output JSON dengan format persis:
-{
-  "translatedText": "hasil terjemahan utama",
-  "transliteration": "cara baca / fonetik / latin jika bahasa non-latin (seperti Jepang/Korea/Arab/Jawa)",
-  "contextExplanation": "penjelasan singkat konteks / perbedaan makna jika ada kata kiasan atau slang rumit",
-  "slangNuances": ["nuansa 1", "nuansa 2"],
-  "synonyms": ["opsi alternatif 1", "opsi alternatif 2"]
-}`;
-
+    const systemInstruction = `Anda adalah mesin Auto Translate AI tingkat tinggi RBLingua. Terjemahkan teks dengan akurasi tinggi, pertahankan nuansa gaya bahasa/tone (${tone}), istilah daerah, dan slang.`;
     const prompt = `Terjemahkan teks berikut:
-Teks Asal: "${text}"
+Teks: "${text}"
 Bahasa Asal: ${sourceLang}
 Bahasa Tujuan: ${targetLang}
-Gaya/Tone: ${tone}
-
-Pastikan jika teks mengandung slang lokal Indonesia (seperti "gimmick", "ngedrop", "gercep", "mabar", "baper") atau istilah daerah, terjemahkan dengan makna emosional dan konteks yang paling pas.`;
-
-    if (!ai) {
-      throw new Error("Missing GEMINI_API_KEY / VITE_GEMINI_API_KEY");
-    }
+Gaya/Tone: ${tone}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         systemInstruction,
-        responseMimeType: "application/json",
+        responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
           properties: {
             translatedText: { type: Type.STRING },
             transliteration: { type: Type.STRING },
             contextExplanation: { type: Type.STRING },
-            slangNuances: { type: Type.ARRAY, items: { type: Type.STRING } },
-            synonyms: { type: Type.ARRAY, items: { type: Type.STRING } },
+            slangNuances: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            synonyms: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
           },
-          required: ["translatedText"],
+          required: ['translatedText'],
         },
       },
     });
 
-    let jsonResult: any = { translatedText: text, transliteration: "", contextExplanation: "", slangNuances: [], synonyms: [] };
-    try {
-      if (response.text) {
+    let jsonResult = { translatedText: text, transliteration: '', contextExplanation: '', slangNuances: [], synonyms: [] };
+    if (response.text) {
+      try {
         jsonResult = JSON.parse(response.text.trim());
+      } catch (e) {
+        jsonResult.translatedText = response.text;
       }
-    } catch {
-      jsonResult.translatedText = response.text || text;
     }
 
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        buildResponsePayload({
-          sourceText: text,
-          translatedText: jsonResult.translatedText || text,
-          sourceLang,
-          targetLang,
-          tone,
-          transliteration: jsonResult.transliteration || "",
-          contextExplanation: jsonResult.contextExplanation || "Terjemahan AI Akurat Presisi Tinggi",
-          slangNuances: Array.isArray(jsonResult.slangNuances) ? jsonResult.slangNuances : [],
-          synonyms: Array.isArray(jsonResult.synonyms) ? jsonResult.synonyms : [],
-          isOffline: false,
-        })
-      ),
-    };
-  } catch (error: any) {
-    console.error("Error in translate function:", error);
-    const body = JSON.parse(event.body || "{}");
-    const sourceText = body.text || "";
-    const sourceLang = body.sourceLang || "auto";
-    const targetLang = body.targetLang || "id";
-    const tone = body.tone || "casual";
-    const offlineFallback = searchOfflineDictionary(sourceText, sourceLang, targetLang);
-
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        buildResponsePayload({
-          sourceText,
-          translatedText: offlineFallback?.translation || buildOfflineFallbackText(sourceText, sourceLang, targetLang),
-          sourceLang,
-          targetLang,
-          tone,
-          contextExplanation: offlineFallback
-            ? "Mode Cadangan Cepat (Gagal terhubung ke Cloud AI)"
-            : `Mode Cadangan Cepat: Kamus offline belum punya padanan untuk ${getLanguageLabel(targetLang)}.`,
-          slangNuances: offlineFallback ? [] : ["Tambahkan pasangan kamus offline untuk hasil terjemahan lebih natural"],
-          synonyms: [],
-          isOffline: true,
-        })
-      ),
-    };
+    return new Response(
+      JSON.stringify({
+        sourceText: text,
+        translatedText: jsonResult.translatedText,
+        sourceLang,
+        targetLang,
+        tone,
+        transliteration: jsonResult.transliteration || '',
+        contextExplanation: jsonResult.contextExplanation || 'Terjemahan AI Akurat',
+        slangNuances: jsonResult.slangNuances || [],
+        synonyms: jsonResult.synonyms || [],
+        isOffline: false,
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
+    );
+  } catch (err: any) {
+    return new Response(
+      JSON.stringify({
+        error: err.message || 'Gagal menerjemahkan',
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 };

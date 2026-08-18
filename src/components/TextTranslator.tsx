@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, getLanguageName } from '../data/languages';
 import { AppSettings, RegisterTone, TranslationResult } from '../types';
-import { searchOfflineDictionary } from '../data/offlineDictionary';
+import { executeTranslation } from '../services/aiService';
 
 interface TextTranslatorProps {
   settings: AppSettings;
@@ -62,58 +62,18 @@ export const TextTranslator: React.FC<TextTranslatorProps> = ({ settings, onSave
     setCopied(false);
 
     try {
-      const response = await fetch('/api/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text,
-          sourceLang,
-          targetLang,
-          tone,
-          isOffline: settings.offlineMode,
-        }),
+      const resObj = await executeTranslation({
+        text,
+        sourceLang,
+        targetLang,
+        tone,
+        isOffline: settings.offlineMode,
       });
-
-      const data = await response.json();
-      
-      const resObj: TranslationResult = {
-        id: 'tr-' + Date.now(),
-        sourceText: text,
-        translatedText: data.translatedText || text,
-        sourceLang: data.sourceLang || sourceLang,
-        targetLang: data.targetLang || targetLang,
-        tone: data.tone || tone,
-        transliteration: data.transliteration,
-        contextExplanation: data.contextExplanation,
-        slangNuances: data.slangNuances || [],
-        synonyms: data.synonyms || [],
-        timestamp: Date.now(),
-        isOffline: data.isOffline || settings.offlineMode,
-        isFavorite: false,
-      };
 
       setResult(resObj);
       onSaveHistory(resObj);
     } catch (err) {
-      console.error('Translation server error, falling back to local engine:', err);
-      const offlineMatch = searchOfflineDictionary(text, sourceLang, targetLang);
-      const fallbackResult: TranslationResult = {
-        id: 'tr-' + Date.now(),
-        sourceText: text,
-        translatedText: offlineMatch?.translation || `[Terjemahan Offline] ${text}`,
-        sourceLang,
-        targetLang,
-        tone,
-        transliteration: offlineMatch?.transliteration || '',
-        contextExplanation: offlineMatch?.notes || 'Mode Offline Lokal (Server Backend Tidak Terjangkau)',
-        slangNuances: ['Processed via client-side offline dictionary'],
-        synonyms: [],
-        timestamp: Date.now(),
-        isOffline: true,
-        isFavorite: false,
-      };
-      setResult(fallbackResult);
-      onSaveHistory(fallbackResult);
+      console.error('Translation error:', err);
     } finally {
       setLoading(false);
     }

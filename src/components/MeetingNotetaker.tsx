@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, getLanguageName } from '../data/languages';
 import { AppSettings, MeetingSpeakerLog, MeetingSummary } from '../types';
+import { executeTranslation, executeMeetingSummary } from '../services/aiService';
 
 interface MeetingNotetakerProps {
   settings: AppSettings;
@@ -137,18 +138,13 @@ export const MeetingNotetaker: React.FC<MeetingNotetakerProps> = ({ settings }) 
           if (event.results[current].isFinal) {
             // Translate live transcript
             try {
-              const res = await fetch('/api/translate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  text: transcript,
-                  sourceLang: 'auto',
-                  targetLang: targetTranslateLang,
-                  tone: 'formal',
-                  isOffline: settings.offlineMode,
-                }),
+              const transResult = await executeTranslation({
+                text: transcript,
+                sourceLang: 'auto',
+                targetLang: targetTranslateLang,
+                tone: 'formal',
+                isOffline: settings.offlineMode,
               });
-              const data = await res.json();
               const speakerName = `Pembicara ${Math.floor(Math.random() * 2) + 1}`;
               
               const newLog: MeetingSpeakerLog = {
@@ -156,14 +152,14 @@ export const MeetingNotetaker: React.FC<MeetingNotetakerProps> = ({ settings }) 
                 speaker: speakerName,
                 timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 originalText: transcript,
-                translatedText: data.translatedText || transcript,
+                translatedText: transResult.translatedText || transcript,
               };
 
               setLogs((prev) => [...prev, newLog]);
               setLatestSubtitle({
                 speaker: speakerName,
                 original: transcript,
-                translated: data.translatedText || transcript,
+                translated: transResult.translatedText || transcript,
               });
             } catch (e) {
               console.error(e);
@@ -210,17 +206,8 @@ export const MeetingNotetaker: React.FC<MeetingNotetakerProps> = ({ settings }) 
   const handleGenerateSummary = async () => {
     setLoadingSummary(true);
     try {
-      const res = await fetch('/api/summarize-meeting', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transcriptLogs: logs,
-          originalLang: 'id',
-          targetLang: 'id',
-        }),
-      });
+      const data = await executeMeetingSummary(logs, 'id', 'id');
 
-      const data = await res.json();
       setSummary({
         id: 'sum-' + Date.now(),
         title: 'Notulensi Rapat Otomatis AI',
